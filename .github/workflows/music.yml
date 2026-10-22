@@ -1,7 +1,6 @@
 name: Music Bot
 
 # يُشغَّل فقط من الخارج (بوت المراقبة على orhost) أو يدويا من GitHub.
-# تم حذف الـ cron وخطوة التشغيل الذاتي لمنع أي تعارض.
 on:
   workflow_dispatch:
 
@@ -15,7 +14,8 @@ permissions:
 
 jobs:
   run:
-    runs-on: ubuntu-latest
+    # نسخة ثابتة: ubuntu-latest ينتقل لنسخة جديدة من تلقاء نفسه وقد يكسر البيئة.
+    runs-on: ubuntu-24.04
     timeout-minutes: 355
     steps:
       - uses: actions/checkout@v4
@@ -25,15 +25,24 @@ jobs:
           python-version: "3.11"
           cache: pip
 
+      # إعادة المحاولة عند أعطال مرايا apt المؤقتة، وإذا لم يتثبت ffmpeg تفشل الخطوة بوضوح.
       - name: Install ffmpeg
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+        run: |
+          for i in 1 2 3 4 5; do
+            if sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg; then break; fi
+            echo "apt failed (attempt $i); retrying in 15s"
+            sleep 15
+          done
+          ffprobe -version | head -n 1
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: pip install --retries 5 --timeout 60 -r requirements.txt
 
       - name: Run bot
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
           SESSION_STRING: ${{ secrets.SESSION_STRING }}
           MAX_RUNTIME_SECONDS: "20400"   # 5 ساعات و40 دقيقة ثم يغلق نفسه
+        # exec حتى تصل إشارات الإيقاف (SIGINT/SIGTERM) إلى بايثون مباشرة
+        # فيغلق الحساب والمكالمة بشكل صحيح بدون أخطاء
         run: exec python -u main.py
