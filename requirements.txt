@@ -1,3 +1,4 @@
-telethon
-py-tgcalls
-tgcrypto
+telethon==1.45.0
+py-tgcalls==3.0.0
+ntgcalls==3.0.4
+tgcrypto==1.2.5
