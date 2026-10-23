@@ -47,7 +47,7 @@ YOUTUBE_CHAT_ID = -1004402681303
 TARGET_CHAT_LINK = ""
 DEVELOPER_URL = ""
 # اسم الزر الذي يظهر تحت رسالة (انتهى التشغيل). يفتح رابط الكروب.
-END_BUTTON_TEXT = "منار الحق"
+END_BUTTON_TEXT = "دَلِيلُ الفِقه"
 
 # كليشة ستارت الثابتة.
 START_TEXT = (
@@ -616,7 +616,7 @@ class GroupMusicBot:
             if requester_id
             else requester_name
         )
-        header = "<blockquote>▷ ꧁مَنَارُ الحَقّ꧂ </blockquote>\n"
+        header = "<blockquote>▷ دَلِيلُ الفِقه </blockquote>\n"
         if queued_count is not None:
             return (
                 header
