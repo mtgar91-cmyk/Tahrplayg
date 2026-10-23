@@ -25,17 +25,30 @@ jobs:
           python-version: "3.11"
           cache: pip
 
-      # إعادة المحاولة عند أعطال مرايا apt المؤقتة، وإذا لم يتثبت ffmpeg تفشل الخطوة بوضوح.
+      # سبب التعليق الطويل: أمر apt قد يعلق على مرآة بطيئة بلا أي مهلة فيبقى ربع ساعة أو أكثر.
+      # الحل: ffmpeg غالبا موجود أصلا (نتخطى التثبيت)، وإلا فكل أمر apt له مهلة خارجية
+      # ومهلة شبكة ومحاولات، والخطوة كلها لها سقف 10 دقائق ثم تفشل بوضوح (فيعيد المراقب التشغيل).
       - name: Install ffmpeg
+        timeout-minutes: 10
         run: |
-          for i in 1 2 3 4 5; do
-            if sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg; then break; fi
-            echo "apt failed (attempt $i); retrying in 15s"
-            sleep 15
-          done
+          if command -v ffmpeg >/dev/null 2>&1 && command -v ffprobe >/dev/null 2>&1; then
+            echo "ffmpeg already installed"
+          else
+            APT_OPTS="-o Acquire::Retries=3 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 -o Acquire::ForceIPv4=true -o DPkg::Lock::Timeout=60"
+            for i in 1 2 3; do
+              if sudo timeout 120 apt-get update -qq $APT_OPTS \
+                 && sudo timeout 240 apt-get install -y -qq --no-install-recommends $APT_OPTS ffmpeg; then
+                break
+              fi
+              echo "apt failed (attempt $i); retrying in 10s"
+              sleep 10
+            done
+          fi
+          command -v ffmpeg >/dev/null 2>&1 || { echo "ffmpeg is not installed"; exit 1; }
           ffprobe -version | head -n 1
 
       - name: Install dependencies
+        timeout-minutes: 10
         run: pip install --retries 5 --timeout 60 -r requirements.txt
 
       - name: Run bot
